@@ -1,4 +1,4 @@
-# Variables de entorno / secretos
+# Environment variables / Secrets
 .env
 
 # Python
@@ -7,23 +7,18 @@ __pycache__/
 *.egg-info/
 .eggs/
 
-# Entornos virtuales
+# Virtual environments
 venv/
 .venv/
 env/
 .env.bak
-
-# Base de datos local
-*.db
-*.sqlite
-*.sqlite3
 
 # Node / frontend
 node_modules/
 frontend/dist/
 .env.local
 
-# Editores / SO
+# Editor / IDE
 .vscode/
 .idea/
 .DS_Store
