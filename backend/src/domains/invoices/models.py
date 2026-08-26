@@ -8,7 +8,7 @@ from src.shared.models.base import BaseMixin
 
 
 class Invoice(Base, BaseMixin):
-    __tablename__ = "invoices"
+    __tablename__ = "facturas"
 
     filename: Mapped[str] = mapped_column(String(255), nullable=False)
 
