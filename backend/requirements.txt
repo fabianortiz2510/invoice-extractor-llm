@@ -1,0 +1,17 @@
+fastapi[standard]>=0.115
+uvicorn[standard]>=0.30
+sqlalchemy[asyncio]>=2.0
+asyncpg>=0.29
+alembic>=1.13
+pydantic>=2.7
+pydantic-settings>=2.4
+python-dotenv>=1.0
+python-multipart>=0.0.9
+
+# Extracción de facturas (LLM + procesamiento de archivos)
+openai>=1.40
+anthropic>=0.34
+google-genai>=1.0
+PyMuPDF>=1.24
+Pillow>=10.3
+python-dateutil>=2.9
