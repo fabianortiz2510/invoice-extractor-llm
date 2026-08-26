@@ -4,7 +4,7 @@ from sqlalchemy import Boolean, Float, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.core.database import Base
-from src.shared.models.base import BaseMixin
+from src.models.base import BaseMixin
 
 
 class Invoice(Base, BaseMixin):

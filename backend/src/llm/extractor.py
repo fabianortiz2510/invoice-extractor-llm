@@ -12,8 +12,8 @@ from dateutil import parser as date_parser
 from PIL import Image
 from pydantic import ValidationError
 
-from src.domains.invoices.llm_clients import LLMError, get_llm_client
-from src.domains.invoices.llm_schema import InvoiceExtraction
+from src.llm.clients import LLMError, get_llm_client
+from src.llm.schema import InvoiceExtraction
 
 logger = logging.getLogger(__name__)
 

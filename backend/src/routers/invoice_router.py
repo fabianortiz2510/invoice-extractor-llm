@@ -5,9 +5,9 @@ from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import get_db
-from src.domains.invoices.extractor import extract_invoice_data
-from src.domains.invoices.schemas import InvoiceListItem, InvoiceResponse
-from src.domains.invoices.service import InvoiceService
+from src.llm.extractor import extract_invoice_data
+from src.schemas.invoice import InvoiceListItem, InvoiceResponse
+from src.services.invoice_service import InvoiceService
 
 router = APIRouter()
 

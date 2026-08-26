@@ -1,9 +1,6 @@
-"""Capa de acceso a datos para el dominio de facturas."""
-
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from src.domains.invoices.models import Invoice
+from src.models.invoice import Invoice
 
 
 class InvoiceService:

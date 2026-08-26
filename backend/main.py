@@ -7,10 +7,10 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src.core.config import settings
 from src.core.database import engine
-from src.domains.invoices.router import router as invoices_router
+from src.routers.invoice_router import router as invoices_router
 
 # Registra el modelo en Base.metadata (necesario para Alembic / create_all).
-from src.domains.invoices import models as _invoices_models  # noqa: F401
+from src.models import invoice as _invoice_model  # noqa: F401
 
 
 @asynccontextmanager

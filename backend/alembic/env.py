@@ -10,8 +10,8 @@ from alembic import context
 from src.core.config import settings
 from src.core.database import Base
 
-# Registra los modelos del dominio en Base.metadata para autogenerate/create.
-from src.domains.invoices import models as _invoices_models  # noqa: F401
+# Registra los modelos en Base.metadata para autogenerate/create.
+from src.models import invoice as _invoice_model  # noqa: F401
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
