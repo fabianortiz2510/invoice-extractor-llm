@@ -2,7 +2,6 @@ import base64
 import os
 from abc import ABC, abstractmethod
 
-import anthropic
 from google import genai
 from google.genai import types
 from openai import OpenAI
@@ -68,51 +67,6 @@ class OpenAIVisionClient(BaseLLMClient):
         return content
 
 
-class AnthropicVisionClient(BaseLLMClient):
-    """Cliente para modelos de Anthropic con capacidad de visión (ej. claude-sonnet-5)."""
-
-    def __init__(self):
-        api_key = os.getenv("ANTHROPIC_API_KEY")
-        if not api_key:
-            raise LLMError(
-                "Falta la variable de entorno ANTHROPIC_API_KEY. "
-                "Configúrala en tu archivo .env."
-            )
-        self._client = anthropic.Anthropic(api_key=api_key)
-        self._model = os.getenv("ANTHROPIC_VISION_MODEL", "claude-sonnet-5")
-
-    def extract(self, b64_image: str, mime_type: str, system_prompt: str, user_prompt: str) -> str:
-        try:
-            response = self._client.messages.create(
-                model=self._model,
-                max_tokens=1024,
-                system=system_prompt,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "image",
-                                "source": {
-                                    "type": "base64",
-                                    "media_type": mime_type,
-                                    "data": b64_image,
-                                },
-                            },
-                            {"type": "text", "text": user_prompt},
-                        ],
-                    }
-                ],
-            )
-        except Exception as exc:  # noqa: BLE001 - se traduce a un error de dominio controlado
-            raise LLMError(f"Error al llamar a la API de Anthropic: {exc}") from exc
-
-        text_blocks = [block.text for block in response.content if block.type == "text"]
-        if not text_blocks:
-            raise LLMError("Anthropic devolvió una respuesta sin contenido de texto.")
-        return "".join(text_blocks)
-
-
 class GeminiVisionClient(BaseLLMClient):
     """Cliente para modelos de Google Gemini con capacidad de visión."""
 
@@ -152,18 +106,16 @@ class GeminiVisionClient(BaseLLMClient):
 def _build_client(provider: str) -> BaseLLMClient:
     if provider == "openai":
         return OpenAIVisionClient()
-    if provider == "anthropic":
-        return AnthropicVisionClient()
     if provider == "gemini":
         return GeminiVisionClient()
 
     raise LLMError(
-        f"'{provider}' no es un proveedor válido. Usa 'openai', 'anthropic' o 'gemini'."
+        f"'{provider}' no es un proveedor válido. Usa 'openai' o 'gemini'."
     )
 
 
 def get_llm_client() -> BaseLLMClient:
-    """Factory: instancia el cliente LLM primario según LLM_PROVIDER (openai | anthropic | gemini)."""
+    """Factory: instancia el cliente LLM primario según LLM_PROVIDER (openai | gemini)."""
     provider = os.getenv("LLM_PROVIDER", "openai").strip().lower()
     try:
         return _build_client(provider)

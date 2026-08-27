@@ -23,7 +23,7 @@ invoice-extractor-llm/
 │   ├── alembic/                    # migraciones (versionan el esquema de la tabla `facturas`)
 │   └── src/
 │       ├── core/                    # config (pydantic-settings), conexión a BD (SQLAlchemy async)
-│       ├── llm/                     # clients.py (OpenAI/Anthropic/Gemini), schema.py, extractor.py
+│       ├── llm/                     # clients.py (OpenAI/Gemini), schema.py, extractor.py
 │       ├── models/                  # base.py (mixin id/created_at), invoice.py (tabla `facturas`)
 │       ├── schemas/                 # invoice.py — esquemas Pydantic de entrada/salida de la API
 │       ├── services/                # invoice_service.py — consultas a la base de datos
@@ -48,13 +48,15 @@ esquemas en `schemas/`, etc.) en vez de una carpeta por feature.
 
 Copia `.env.example` a `.env` en la raíz del repo y completa:
 
-- `LLM_PROVIDER`: el proyecto soporta `openai`, `anthropic` y `gemini` (ver
-  `backend/src/llm/clients.py`), pero el `.env.example` solo trae configurado
-  Gemini por defecto.
+- `LLM_PROVIDER`: proveedor primario, `openai` o `gemini` (ver
+  `backend/src/llm/clients.py`). El `.env.example` trae `gemini` por defecto.
 - `GEMINI_API_KEY`: tu key de Google AI Studio. Ninguna key está hardcodeada;
-  cada cliente la lee de su propia variable de entorno (si quisieras usar
-  OpenAI o Anthropic en su lugar, agrega `OPENAI_API_KEY`/`ANTHROPIC_API_KEY`
-  y cambia `LLM_PROVIDER`).
+  cada cliente la lee de su propia variable de entorno.
+- `LLM_FALLBACK_PROVIDER` (opcional): si el proveedor primario falla (servicio
+  caído, error de API, etc.), se reintenta automáticamente con este proveedor
+  antes de darse por vencido. Por defecto `openai` — recuerda poner también
+  `OPENAI_API_KEY` para que el fallback funcione de verdad. Déjalo vacío para
+  desactivarlo.
 - Las variables de Postgres (`POSTGRES_USER`, `POSTGRES_PASSWORD`,
   `POSTGRES_DB`, `DATABASE_URL`) ya vienen con valores por defecto que
   funcionan tal cual con `docker-compose.yml` — puedes cambiarlos, pero
@@ -138,7 +140,7 @@ de `CREATE TABLE IF NOT EXISTS`, lo cual es la práctica estándar para
 evolucionar un esquema en el tiempo sin perder datos.
 
 **`extract_invoice_data` corre en threadpool**
-Los SDKs de OpenAI/Anthropic/Gemini son síncronos. Para no bloquear el event
+Los SDKs de OpenAI/Gemini son síncronos. Para no bloquear el event
 loop async de FastAPI mientras se espera la respuesta del LLM, el router la
 invoca con `fastapi.concurrency.run_in_threadpool`.
 
@@ -165,10 +167,16 @@ layouts de factura).
 
 **Capa de abstracción de proveedores (`llm/clients.py`)**
 `BaseLLMClient` define una interfaz común (`extract(...)`) implementada por
-`OpenAIVisionClient`, `AnthropicVisionClient` y `GeminiVisionClient`. La
-factory `get_llm_client()` decide cuál instanciar según `LLM_PROVIDER` — este
-archivo es código puro sin dependencias de framework (no usa `Settings` de
-`core/config.py`, lee las variables de entorno directamente con `os.getenv`).
+`OpenAIVisionClient` y `GeminiVisionClient`. La factory `get_llm_client()`
+decide cuál instanciar según `LLM_PROVIDER` — este archivo es código puro sin
+dependencias de framework (no usa `Settings` de `core/config.py`, lee las
+variables de entorno directamente con `os.getenv`).
+
+**Fallback automático de proveedor**
+Si `LLM_FALLBACK_PROVIDER` está configurado, `extract_invoice_data()`
+(`llm/extractor.py`) reintenta el flujo completo con ese segundo proveedor
+cuando el primario falla por cualquier razón (error de API, JSON inválido
+tras los reintentos, etc.), antes de devolver un error al usuario.
 
 **Tabla `facturas` (antes `invoices`)**
 El modelo SQLAlchemy en `models/invoice.py` usa `__tablename__ = "facturas"`.

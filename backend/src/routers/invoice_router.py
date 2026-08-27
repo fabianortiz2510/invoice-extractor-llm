@@ -29,7 +29,7 @@ async def extract_invoice(
 
     content = await file.read()
 
-    # extract_invoice_data es síncrona (SDKs de OpenAI/Anthropic/Gemini) — se
+    # extract_invoice_data es síncrona (SDKs de OpenAI/Gemini) — se
     # corre en threadpool para no bloquear el event loop de FastAPI.
     result = await run_in_threadpool(extract_invoice_data, content, file.filename)
 

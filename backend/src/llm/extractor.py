@@ -192,7 +192,7 @@ def extract_invoice_data(file_bytes: bytes, filename: str) -> ExtractionResult:
     LLM_FALLBACK_PROVIDER configurado, reintenta el flujo completo con ese
     segundo proveedor antes de darse por vencido.
 
-    Función síncrona (los SDKs de OpenAI/Anthropic/Gemini son síncronos) — el
+    Función síncrona (los SDKs de OpenAI/Gemini son síncronos) — el
     router FastAPI debe llamarla vía run_in_threadpool para no bloquear el
     event loop.
     """
