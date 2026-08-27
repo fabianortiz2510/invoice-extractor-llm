@@ -13,21 +13,11 @@ class InvoiceExtraction(BaseModel):
     rest are best-effort and may come back as null.
     """
 
-    fecha_emision: Optional[str] = Field(
-        default=None, description="Invoice issue date, ideally YYYY-MM-DD"
-    )
-    valor_total: Optional[float] = Field(
-        default=None, description="Total amount due, as a number without currency symbols"
-    )
-    moneda: Optional[str] = Field(
-        default=None, description="Currency code or symbol, e.g. COP, USD, $"
-    )
-    proveedor: Optional[str] = Field(
-        default=None, description="Name of the invoice's provider/issuer"
-    )
-    numero_factura: Optional[str] = Field(
-        default=None, description="Invoice number or reference"
-    )
+    fecha_emision: Optional[str] = Field(default=None, description="Invoice issue date, ideally YYYY-MM-DD")
+    valor_total: Optional[float] = Field(default=None, description="Total amount due, as a number without currency symbols")
+    moneda: Optional[str] = Field(default=None, description="Currency code or symbol, e.g. COP, USD, $")
+    proveedor: Optional[str] = Field(default=None, description="Name of the invoice's provider/issuer")
+    numero_factura: Optional[str] = Field(default=None, description="Invoice number or reference")
 
     @field_validator("fecha_emision", "moneda", "proveedor", "numero_factura", mode="before")
     @classmethod
