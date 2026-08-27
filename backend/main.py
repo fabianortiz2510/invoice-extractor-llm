@@ -1,4 +1,4 @@
-"""Punto de entrada de la API FastAPI del extractor de facturas."""
+"""Entry point for the invoice extractor's FastAPI app."""
 
 from contextlib import asynccontextmanager
 
@@ -9,7 +9,7 @@ from src.core.config import settings
 from src.core.database import engine
 from src.routers.invoice_router import router as invoices_router
 
-# Registra el modelo en Base.metadata (necesario para Alembic / create_all).
+# Registers the model in Base.metadata (needed by Alembic / create_all).
 from src.models import invoice as _invoice_model  # noqa: F401
 
 

@@ -1,4 +1,4 @@
-"""Endpoints REST del dominio de facturas."""
+"""REST endpoints for invoices."""
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.concurrency import run_in_threadpool
@@ -19,7 +19,7 @@ async def extract_invoice(
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
 ):
-    """Sube una factura (PNG/JPG/PDF), la extrae con el LLM configurado y la persiste."""
+    """Uploads an invoice (PNG/JPG/PDF), extracts it with the configured LLM, and persists it."""
     extension = file.filename.lower().rsplit(".", 1)[-1] if file.filename and "." in file.filename else ""
     if extension not in ALLOWED_CONTENT_EXTENSIONS:
         raise HTTPException(
@@ -29,8 +29,8 @@ async def extract_invoice(
 
     content = await file.read()
 
-    # extract_invoice_data es síncrona (litellm.completion es síncrona) — se
-    # corre en threadpool para no bloquear el event loop de FastAPI.
+    # extract_invoice_data is synchronous (litellm.completion is synchronous) —
+    # run it in a threadpool so it doesn't block FastAPI's event loop.
     result = await run_in_threadpool(extract_invoice_data, content, file.filename)
 
     if not result.success:
@@ -44,13 +44,13 @@ async def extract_invoice(
 
 @router.get("", response_model=list[InvoiceListItem])
 async def list_invoices(db: AsyncSession = Depends(get_db)):
-    """Historial de facturas procesadas, más recientes primero."""
+    """History of processed invoices, most recent first."""
     return await InvoiceService.list_invoices(db)
 
 
 @router.get("/{invoice_id}", response_model=InvoiceResponse)
 async def get_invoice(invoice_id: str, db: AsyncSession = Depends(get_db)):
-    """Detalle de una factura, incluyendo la respuesta cruda del LLM."""
+    """Invoice detail, including the LLM's raw response."""
     invoice = await InvoiceService.get_by_id(db, invoice_id)
     if invoice is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Factura no encontrada.")

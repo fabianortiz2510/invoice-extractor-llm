@@ -1,11 +1,11 @@
-"""Capa de llamada al LLM usando litellm.
+"""LLM call layer using litellm.
 
-litellm unifica múltiples proveedores (OpenAI, Gemini, y muchos más) bajo una
-sola interfaz de mensajes estilo OpenAI, con soporte nativo de imágenes
-(vision) y fallback automático entre modelos. El modelo se especifica como
-"proveedor/modelo" (ej. "gemini/gemini-3.5-flash", "openai/gpt-4o") — litellm
-decide internamente qué API llamar y qué variable de entorno de API key usar
-según el prefijo (GEMINI_API_KEY, OPENAI_API_KEY, etc.).
+litellm unifies multiple providers (OpenAI, Gemini, and many more) behind a
+single OpenAI-style message interface, with native image (vision) support
+and automatic fallback between models. The model is specified as
+"provider/model" (e.g. "gemini/gemini-3.5-flash", "openai/gpt-4o") — litellm
+internally decides which API to call and which API key env var to use based
+on the prefix (GEMINI_API_KEY, OPENAI_API_KEY, etc.).
 """
 
 import os
@@ -14,28 +14,27 @@ import litellm
 
 
 class LLMError(Exception):
-    """Error controlado al comunicarse con el LLM."""
+    """Controlled error when talking to the LLM."""
 
 
 def _fallback_models() -> list[str] | None:
-    """Lista de modelos de fallback para litellm, o None si no hay ninguno configurado.
+    """Fallback model list for litellm, or None if none is configured.
 
-    Se devuelve None (no una lista vacía) cuando no hay fallback: litellm
-    activa su mecanismo interno de fallback con solo comprobar
-    `fallbacks is not None`, así que una lista vacía igual lo activaría
-    innecesariamente.
+    Returns None (not an empty list) when there's no fallback: litellm's
+    fallback path activates just by checking `fallbacks is not None`, so an
+    empty list would still trigger it unnecessarily.
     """
     fallback = os.getenv("LLM_FALLBACK", "").strip()
     return [fallback] if fallback else None
 
 
 def call_llm(b64_image: str, mime_type: str, system_prompt: str, user_prompt: str) -> str:
-    """Envía la imagen (base64) + prompts al LLM primario (LLM_PRIMARY).
+    """Send the image (base64) + prompts to the primary LLM (LLM_PRIMARY).
 
-    Si LLM_FALLBACK está configurado y el primario falla, litellm reintenta
-    automáticamente con ese modelo antes de propagar el error. Devuelve el
-    texto crudo de la respuesta (se espera JSON como texto); la validación
-    del contenido se hace en extractor.py, no aquí.
+    If LLM_FALLBACK is set and the primary model fails, litellm automatically
+    retries with that model before the error is raised. Returns the raw
+    response text (expected to be JSON); content validation happens in
+    extractor.py, not here.
     """
     primary_model = os.getenv("LLM_PRIMARY", "gemini/gemini-3.5-flash").strip()
 
@@ -60,7 +59,7 @@ def call_llm(b64_image: str, mime_type: str, system_prompt: str, user_prompt: st
             max_tokens=1024,
             temperature=0,
         )
-    except Exception as exc:  # noqa: BLE001 - se traduce a un error de dominio controlado
+    except Exception as exc:  # noqa: BLE001 - translated into a controlled domain error
         raise LLMError(f"Error al llamar al LLM ({primary_model}): {exc}") from exc
 
     content = response.choices[0].message.content

@@ -1,4 +1,4 @@
-"""Mixin compartido para los modelos SQLAlchemy de todos los dominios."""
+"""Shared mixin for the SQLAlchemy models across all domains."""
 
 from datetime import datetime
 from uuid import uuid4

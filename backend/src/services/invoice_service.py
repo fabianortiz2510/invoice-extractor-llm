@@ -1,3 +1,5 @@
+"""Data access layer for invoices."""
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.models.invoice import Invoice

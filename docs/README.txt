@@ -1,6 +1,7 @@
-Coloca aquí al menos una factura de prueba (imagen PNG/JPG o PDF) antes de
-entregar este proyecto — real o ficticia, no importa, pero debe ser legible.
+Place at least one sample invoice here (PNG/JPG image or PDF) before
+submitting this project — real or fictitious, doesn't matter, but it must
+be legible.
 
-Este archivo es solo un recordatorio y no es generado ni requerido por la
-aplicación: la app funciona con cualquier archivo que cargues desde la
-interfaz web (no necesariamente desde esta carpeta).
+This file is just a reminder and is not generated or required by the
+application: the app works with any file you upload from the web
+interface (not necessarily from this folder).

@@ -1,4 +1,4 @@
-"""Orquesta la extracción de datos de una factura: archivo -> imagen -> LLM -> validación."""
+"""Orchestrates invoice data extraction: file -> image -> LLM -> validation."""
 
 import base64
 import io
@@ -19,7 +19,7 @@ from src.llm.schema import InvoiceExtraction
 logger = logging.getLogger(__name__)
 
 SUPPORTED_IMAGE_EXTENSIONS = {"png", "jpg", "jpeg"}
-MAX_RETRIES = 2  # 1 intento inicial + 1 reintento de corrección
+MAX_RETRIES = 2  # 1 initial attempt + 1 correction retry
 
 SYSTEM_PROMPT = """Eres un asistente experto en extraer datos de facturas de servicios \
 (agua, luz, gas, telecomunicaciones, etc.) a partir de una imagen.
@@ -45,7 +45,7 @@ class ExtractionResult:
 
 
 def file_to_image_bytes(file_bytes: bytes, filename: str) -> tuple[bytes, str]:
-    """Convierte el archivo cargado (imagen o PDF) a bytes PNG. Devuelve (bytes, mime_type)."""
+    """Convert the uploaded file (image or PDF) to PNG bytes. Returns (bytes, mime_type)."""
     extension = filename.lower().rsplit(".", 1)[-1] if "." in filename else ""
 
     if extension == "pdf":
@@ -71,7 +71,7 @@ def _pdf_first_page_to_png(pdf_bytes: bytes) -> bytes:
         if doc.page_count == 0:
             raise ValueError("El PDF no contiene paginas.")
         page = doc.load_page(0)
-        # Escala 2x para mejorar la legibilidad del texto por parte del modelo de vision.
+        # 2x scale improves text legibility for the vision model.
         pixmap = page.get_pixmap(matrix=pymupdf.Matrix(2, 2))
         return pixmap.tobytes("png")
     except Exception as exc:
@@ -82,11 +82,11 @@ def _pdf_first_page_to_png(pdf_bytes: bytes) -> bytes:
 
 
 def normalize_date(raw_date: Optional[str]) -> tuple[Optional[str], bool]:
-    """Normaliza una fecha a YYYY-MM-DD.
+    """Normalize a date to YYYY-MM-DD.
 
-    Devuelve (fecha_normalizada, es_valida). Si no se puede interpretar la
-    fecha, se devuelve el valor original y es_valida=False (no falla
-    silenciosamente: el llamador decide como marcarlo).
+    Returns (normalized_date, is_valid). If the date can't be parsed, the
+    original value is returned with is_valid=False (never fails silently —
+    the caller decides how to flag it).
     """
     if raw_date is None:
         return None, False
@@ -95,11 +95,11 @@ def normalize_date(raw_date: Optional[str]) -> tuple[Optional[str], bool]:
     if not raw_date:
         return None, False
 
-    # Intento estricto ISO primero: el SYSTEM_PROMPT ya le pide al LLM el
-    # formato YYYY-MM-DD, y ese formato no es ambiguo (el año va primero).
-    # Si se usara directo dateutil con dayfirst=True, reinterpretaría mal
-    # fechas ISO ya correctas cuando día y mes son ambos <= 12 (ej. convierte
-    # "2024-05-01" en 2024-01-05).
+    # Try a strict ISO parse first: SYSTEM_PROMPT already asks the LLM for
+    # YYYY-MM-DD, and that format is unambiguous (year comes first). Going
+    # straight to dateutil with dayfirst=True would misinterpret already
+    # correct ISO dates when day and month are both <= 12 (e.g. it turns
+    # "2024-05-01" into 2024-01-05).
     try:
         parsed = datetime.strptime(raw_date, "%Y-%m-%d")
         return parsed.strftime("%Y-%m-%d"), True
@@ -130,15 +130,14 @@ def _parse_and_validate(raw_text: str) -> InvoiceExtraction:
 
 
 def extract_invoice_data(file_bytes: bytes, filename: str) -> ExtractionResult:
-    """Punto de entrada principal: procesa un archivo de factura de punta a punta.
+    """Main entry point: processes an invoice file end to end.
 
-    El fallback entre proveedores (LLM_PRIMARY / LLM_FALLBACK) lo resuelve
-    litellm internamente dentro de call_llm() — aquí solo se reintenta contra
-    el mismo LLM cuando la respuesta no es un JSON válido, pidiéndole que
-    corrija el formato.
+    Provider fallback (LLM_PRIMARY / LLM_FALLBACK) is handled internally by
+    litellm inside call_llm() — this function only retries against the same
+    LLM when the response isn't valid JSON, asking it to fix the format.
 
-    Función síncrona (litellm.completion es síncrona) — el router FastAPI
-    debe llamarla vía run_in_threadpool para no bloquear el event loop.
+    Synchronous function (litellm.completion is synchronous) — the FastAPI
+    router must call it via run_in_threadpool to avoid blocking the event loop.
     """
     try:
         image_bytes, mime_type = file_to_image_bytes(file_bytes, filename)
@@ -169,7 +168,7 @@ def extract_invoice_data(file_bytes: bytes, filename: str) -> ExtractionResult:
             invoice = _parse_and_validate(raw_response)
         except (json.JSONDecodeError, ValidationError) as exc:
             last_error = str(exc)
-            logger.warning("Intento %d: JSON del LLM invalido: %s", attempt + 1, last_error)
+            logger.warning("Attempt %d: invalid JSON from the LLM: %s", attempt + 1, last_error)
             continue
 
         fecha_normalizada, fecha_valida = normalize_date(invoice.fecha_emision)

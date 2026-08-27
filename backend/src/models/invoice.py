@@ -1,4 +1,4 @@
-"""Modelo SQLAlchemy de una factura procesada."""
+"""SQLAlchemy model for a processed invoice."""
 
 from sqlalchemy import Boolean, Float, String, Text
 from sqlalchemy.orm import Mapped, mapped_column

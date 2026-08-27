@@ -8,7 +8,7 @@ pydantic-settings>=2.4
 python-dotenv>=1.0
 python-multipart>=0.0.9
 
-# Extracción de facturas (LLM + procesamiento de archivos)
+# Invoice extraction (LLM + file processing)
 litellm>=1.80
 PyMuPDF>=1.24
 Pillow>=10.3

@@ -1,96 +1,97 @@
 # invoice-extractor-llm
 
-Aplicación que permite cargar una factura de servicios (imagen o PDF), extraer
-sus datos clave usando un LLM con capacidad de visión, y visualizarlos en una
-interfaz web. Arquitectura: **backend FastAPI + PostgreSQL** (SQLAlchemy 2.0
-async + Alembic) y **frontend React + Vite**, en un monorepo.
+An application that lets you upload a service invoice (image or PDF), extract
+its key data using a vision-capable LLM, and view it in a web interface.
+Architecture: **FastAPI backend + PostgreSQL** (SQLAlchemy 2.0 async +
+Alembic) and **React + Vite frontend**, in a monorepo.
 
-## Datos extraídos
+## Extracted data
 
-- **Fecha de emisión** (normalizada a `YYYY-MM-DD`) — obligatorio
-- **Valor total a pagar** — obligatorio
-- Moneda, proveedor/emisor y número de factura — opcionales, no rompen el
-  flujo si el modelo no logra identificarlos (quedan como `null`)
+- **Issue date** (normalized to `YYYY-MM-DD`) — required
+- **Total amount due** — required
+- Currency, provider/issuer, and invoice number — optional, they don't break
+  the flow if the model can't identify them (they come back as `null`)
 
-## Estructura del proyecto
+## Project structure
 
 ```
 invoice-extractor-llm/
-├── backend/                       # API FastAPI
+├── backend/                       # FastAPI API
 │   ├── main.py
 │   ├── requirements.txt
 │   ├── Dockerfile
-│   ├── alembic/                    # migraciones (versionan el esquema de la tabla `facturas`)
+│   ├── alembic/                    # migrations (version the `facturas` table's schema)
 │   └── src/
-│       ├── core/                    # config (pydantic-settings), conexión a BD (SQLAlchemy async)
-│       ├── llm/                     # clients.py (OpenAI/Gemini), schema.py, extractor.py
-│       ├── models/                  # base.py (mixin id/created_at), invoice.py (tabla `facturas`)
-│       ├── schemas/                 # invoice.py — esquemas Pydantic de entrada/salida de la API
-│       ├── services/                # invoice_service.py — consultas a la base de datos
-│       └── routers/                 # invoice_router.py — endpoints HTTP
-├── frontend/                       # SPA React + Vite + TypeScript + Tailwind
+│       ├── core/                    # config (pydantic-settings), DB connection (SQLAlchemy async)
+│       ├── llm/                     # clients.py (litellm), schema.py, extractor.py
+│       ├── models/                  # base.py (id/created_at mixin), invoice.py (`facturas` table)
+│       ├── schemas/                 # invoice.py — Pydantic API input/output schemas
+│       ├── services/                # invoice_service.py — database queries
+│       └── routers/                 # invoice_router.py — HTTP endpoints
+├── frontend/                       # React + Vite + TypeScript + Tailwind SPA
 │   └── src/
-│       ├── lib/api.ts               # cliente axios
+│       ├── lib/api.ts               # axios client
 │       ├── components/              # ExtractView, HistoryView
 │       └── App.tsx
 ├── docker-compose.yml               # Postgres + backend
 ├── .env / .env.example
-└── docs/                             # coloca aquí facturas de prueba
+└── docs/                             # place test invoices here
 ```
 
-Organización **por capa técnica** (no por dominio/feature): como el proyecto solo tiene un recurso
-(facturas), cada carpeta agrupa archivos del mismo tipo (todos los modelos en `models/`, todos los
-esquemas en `schemas/`, etc.) en vez de una carpeta por feature.
+Organized **by technical layer** (not by domain/feature): since the project
+only has one resource (invoices), each folder groups files of the same kind
+(all models in `models/`, all schemas in `schemas/`, etc.) instead of one
+folder per feature.
 
-## Instalación y arranque
+## Setup and running
 
-### 1. Variables de entorno
+### 1. Environment variables
 
-Copia `.env.example` a `.env` en la raíz del repo y completa:
+Copy `.env.example` to `.env` at the repo root and fill in:
 
-- `LLM_PROVIDER`: proveedor primario, `openai` o `gemini` (ver
-  `backend/src/llm/clients.py`). El `.env.example` trae `gemini` por defecto.
-- `GEMINI_API_KEY`: tu key de Google AI Studio. Ninguna key está hardcodeada;
-  cada cliente la lee de su propia variable de entorno.
-- `LLM_FALLBACK_PROVIDER` (opcional): si el proveedor primario falla (servicio
-  caído, error de API, etc.), se reintenta automáticamente con este proveedor
-  antes de darse por vencido. Por defecto `openai` — recuerda poner también
-  `OPENAI_API_KEY` para que el fallback funcione de verdad. Déjalo vacío para
-  desactivarlo.
-- Las variables de Postgres (`POSTGRES_USER`, `POSTGRES_PASSWORD`,
-  `POSTGRES_DB`, `DATABASE_URL`) ya vienen con valores por defecto que
-  funcionan tal cual con `docker-compose.yml` — puedes cambiarlos, pero
-  `DATABASE_URL` siempre debe coincidir con los otros tres (mismo usuario,
-  contraseña y nombre de base de datos).
+- `LLM_PRIMARY`: the primary model, as `"provider/model"` (see
+  `backend/src/llm/clients.py`). Defaults to `gemini/gemini-3.5-flash`. The
+  model call goes through [litellm](https://github.com/BerriAI/litellm),
+  which supports OpenAI, Gemini, and many other providers under one API.
+- `GEMINI_API_KEY`: your Google AI Studio key. No key is hardcoded — litellm
+  reads the right API key env var based on the provider prefix in the model
+  string (`gemini/...` → `GEMINI_API_KEY`, `openai/...` → `OPENAI_API_KEY`).
+- `LLM_FALLBACK` (optional): if the primary model fails (service down, API
+  error, etc.), litellm automatically retries with this model before giving
+  up. Defaults to `openai/gpt-4o` — remember to also set `OPENAI_API_KEY` so
+  the fallback actually works. Leave it empty to disable it.
+- The Postgres variables (`POSTGRES_USER`, `POSTGRES_PASSWORD`,
+  `POSTGRES_DB`, `DATABASE_URL`) already ship with defaults that work as-is
+  with `docker-compose.yml` — you can change them, but `DATABASE_URL` must
+  always match the other three (same username, password, and database name).
 
-### 2. Backend + base de datos (Docker)
+### 2. Backend + database (Docker)
 
 ```bash
 docker compose up --build
 ```
 
-Esto levanta Postgres, corre las migraciones de Alembic automáticamente y
-arranca la API en `http://localhost:8000` (con recarga en caliente). Verifica
-que esté arriba:
+This starts Postgres, runs the Alembic migrations automatically, and starts
+the API at `http://localhost:8000` (with hot reload). Check that it's up:
 
 ```bash
 curl http://localhost:8000/health
 ```
 
-Documentación interactiva de la API (Swagger): `http://localhost:8000/docs`.
+Interactive API docs (Swagger): `http://localhost:8000/docs`.
 
-> **Correr el backend fuera de Docker:** instala `backend/requirements.txt` en
-> un entorno virtual, cambia el host `db` por `localhost` en `DATABASE_URL`,
-> corre `alembic upgrade head` dentro de `backend/` y luego `uvicorn main:app
-> --reload`.
+> **Running the backend outside Docker:** install `backend/requirements.txt`
+> in a virtual environment, change the `db` host to `localhost` in
+> `DATABASE_URL`, run `alembic upgrade head` inside `backend/`, then
+> `uvicorn main:app --reload`.
 >
-> ⚠️ **En Windows**, si el Postgres al que apuntas corre en un contenedor de
-> Docker Desktop (aunque sea solo `docker compose up db`), esto puede fallar
-> con `ConnectionDoesNotExistError` / conexión reseteada — es una
-> incompatibilidad conocida entre `asyncpg` y el proxy de red de Docker
-> Desktop/WSL2 en Windows, no un bug del proyecto. En ese caso usa la Opción A
-> (todo en Docker) o instala PostgreSQL nativamente en Windows (sin Docker de
-> por medio) para esta combinación.
+> ⚠️ **On Windows**, if the Postgres you're pointing to runs in a Docker
+> Desktop container (even just `docker compose up db`), this can fail with
+> `ConnectionDoesNotExistError` / a reset connection — that's a known
+> incompatibility between `asyncpg` and Docker Desktop/WSL2's network proxy
+> on Windows, not a bug in this project. In that case use Option A (everything
+> in Docker) or install PostgreSQL natively on Windows (no Docker in between)
+> for this combination.
 
 ### 3. Frontend
 
@@ -100,86 +101,85 @@ npm install
 npm run dev
 ```
 
-Abre `http://localhost:5173`. El frontend ya viene configurado (`.env.local`)
-para apuntar a `http://localhost:8000`.
+Open `http://localhost:5173`. The frontend is already configured
+(`.env.local`) to point to `http://localhost:8000`.
 
-### 4. Usar la app
+### 4. Using the app
 
-1. Pestaña **"Extraer factura"**: sube un PNG, JPG o PDF, presiona "Extraer
-   datos" y verás los campos estructurados + el JSON crudo del LLM.
-2. Pestaña **"Historial"**: lista todas las facturas procesadas, leídas
-   directamente de PostgreSQL.
+1. **"Extract invoice"** tab: upload a PNG, JPG, or PDF, click "Extract data",
+   and you'll see the structured fields + the LLM's raw JSON.
+2. **"History"** tab: lists every processed invoice, read directly from
+   PostgreSQL.
 
-Antes de entregar el proyecto, coloca al menos una factura de prueba (real o
-ficticia) en `docs/` — ver `docs/README.txt`.
+Before submitting the project, place at least one test invoice (real or
+fictitious) in `docs/` — see `docs/README.txt`.
 
 ## API
 
-| Método | Ruta                        | Descripción                                  |
-| ------ | --------------------------- | --------------------------------------------- |
-| POST   | `/api/v1/invoices/extract`  | Sube una factura (`multipart/form-data`, campo `file`), la extrae y la persiste |
-| GET    | `/api/v1/invoices`          | Historial de facturas (más recientes primero) |
-| GET    | `/api/v1/invoices/{id}`     | Detalle de una factura, incluyendo el JSON crudo del LLM |
-| GET    | `/health`                   | Health check                                  |
+| Method | Route                       | Description                                   |
+| ------ | --------------------------- | ---------------------------------------------- |
+| POST   | `/api/v1/invoices/extract`  | Uploads an invoice (`multipart/form-data`, `file` field), extracts it, and persists it |
+| GET    | `/api/v1/invoices`          | Invoice history (most recent first) |
+| GET    | `/api/v1/invoices/{id}`     | Invoice detail, including the LLM's raw JSON |
+| GET    | `/health`                   | Health check |
 
-## Decisiones técnicas
+## Technical decisions
 
-**Arquitectura backend/frontend separados (en vez de Streamlit)**
-Streamlit es ideal para un prototipo de un solo archivo, pero un backend REST
-+ SPA separa responsabilidades de forma más estándar en la industria:
-el backend es reutilizable por cualquier cliente (web, móvil, CLI), y el
-frontend puede evolucionar independientemente. Se mantiene un monorepo
-(`backend/` + `frontend/`) por simplicidad, dado que es un solo desarrollador
-entregando ambas piezas como una unidad.
+**Separate backend/frontend architecture (instead of Streamlit)**
+Streamlit is great for a single-file prototype, but a REST backend + SPA
+splits responsibilities in a more industry-standard way: the backend is
+reusable by any client (web, mobile, CLI), and the frontend can evolve
+independently. It's kept as a monorepo (`backend/` + `frontend/`) for
+simplicity, since it's a single developer shipping both pieces as one unit.
 
 **PostgreSQL + SQLAlchemy 2.0 async + Alembic**
-Reemplaza el SQLite + acceso directo por `sqlite3` de la versión Streamlit.
-`asyncpg` + SQLAlchemy async evita bloquear el event loop de FastAPI en cada
-consulta; Alembic versiona el esquema de la base de datos en vez de depender
-de `CREATE TABLE IF NOT EXISTS`, lo cual es la práctica estándar para
-evolucionar un esquema en el tiempo sin perder datos.
+Replaces the SQLite + raw `sqlite3` access from the Streamlit version.
+`asyncpg` + SQLAlchemy async avoids blocking FastAPI's event loop on every
+query; Alembic versions the database schema instead of relying on
+`CREATE TABLE IF NOT EXISTS`, which is the standard practice for evolving a
+schema over time without losing data.
 
-**`extract_invoice_data` corre en threadpool**
-Los SDKs de OpenAI/Gemini son síncronos. Para no bloquear el event
-loop async de FastAPI mientras se espera la respuesta del LLM, el router la
-invoca con `fastapi.concurrency.run_in_threadpool`.
+**`extract_invoice_data` runs in a threadpool**
+`litellm.completion` is synchronous. To avoid blocking FastAPI's async event
+loop while waiting for the LLM's response, the router calls it via
+`fastapi.concurrency.run_in_threadpool`.
 
-**¿Por qué visión directa en vez de OCR?**
-La imagen (o la primera página del PDF convertida a imagen con PyMuPDF) se
-envía directamente al modelo con capacidad de visión, sin una etapa de OCR
-intermedia que podría introducir errores de transcripción y pierde la
-disposición espacial del documento (útil para que el modelo entienda tablas y
-layouts de factura).
+**Why direct vision instead of OCR?**
+The image (or the PDF's first page, rendered to an image with PyMuPDF) is
+sent directly to the vision-capable model, with no intermediate OCR step
+that could introduce transcription errors and lose the document's spatial
+layout (useful for the model to understand tables and invoice layouts).
 
-**¿Cómo se valida el JSON del LLM?**
-1. El prompt de sistema le pide al modelo responder **exclusivamente** con un
-   JSON de esquema fijo.
-2. La respuesta se parsea (`json.loads`, limpiando posibles fences ```json)
-   y se valida con un modelo **Pydantic** (`llm/schema.py: InvoiceExtraction`).
-3. Si falla el parseo o la validación, se hace **un reintento** enviando al
-   modelo el error obtenido y pidiéndole explícitamente que corrija el
-   formato.
-4. Si el segundo intento también falla, el endpoint devuelve `422` con el
-   error — la extracción fallida **no se persiste** — sin que la API se caiga.
-5. La fecha se normaliza aparte con `dateutil.parser` a `YYYY-MM-DD`; si no se
-   puede interpretar, se guarda tal cual y se marca `fecha_emision_valida =
-   false` en vez de fallar en silencio.
+**How is the LLM's JSON validated?**
+1. The system prompt asks the model to respond **exclusively** with a JSON
+   object matching a fixed schema.
+2. The response is parsed (`json.loads`, stripping any ```json fences) and
+   validated against a **Pydantic** model (`llm/schema.py: InvoiceExtraction`).
+3. If parsing or validation fails, **one retry** is made, sending the model
+   the error it produced and explicitly asking it to fix the format.
+4. If the second attempt also fails, the endpoint returns `422` with the
+   error — the failed extraction is **not persisted** — without the API
+   crashing.
+5. The date is normalized separately with `dateutil.parser` to `YYYY-MM-DD`;
+   if it can't be parsed, it's stored as-is and flagged with
+   `fecha_emision_valida = false` instead of failing silently.
 
-**Capa de abstracción de proveedores (`llm/clients.py`)**
-`BaseLLMClient` define una interfaz común (`extract(...)`) implementada por
-`OpenAIVisionClient` y `GeminiVisionClient`. La factory `get_llm_client()`
-decide cuál instanciar según `LLM_PROVIDER` — este archivo es código puro sin
-dependencias de framework (no usa `Settings` de `core/config.py`, lee las
-variables de entorno directamente con `os.getenv`).
+**Provider abstraction via litellm (`llm/clients.py`)**
+`call_llm()` wraps `litellm.completion()`, which unifies OpenAI, Gemini, and
+many other providers behind one OpenAI-style message API — including native
+image (vision) input and JSON-mode output. The model to call is just a
+`"provider/model"` string (`LLM_PRIMARY`), so switching providers is a config
+change, not a code change.
 
-**Fallback automático de proveedor**
-Si `LLM_FALLBACK_PROVIDER` está configurado, `extract_invoice_data()`
-(`llm/extractor.py`) reintenta el flujo completo con ese segundo proveedor
-cuando el primario falla por cualquier razón (error de API, JSON inválido
-tras los reintentos, etc.), antes de devolver un error al usuario.
+**Automatic provider fallback**
+If `LLM_FALLBACK` is set, litellm retries the same request with that model
+whenever the primary one fails (API error, service outage, etc.) — this
+happens transparently inside a single `call_llm()` call. `extract_invoice_data`
+(`llm/extractor.py`) only adds its own retry on top of that, for the separate
+case of the LLM returning invalid JSON.
 
-**Tabla `facturas` (antes `invoices`)**
-El modelo SQLAlchemy en `models/invoice.py` usa `__tablename__ = "facturas"`.
-Los endpoints de la API siguen bajo el prefijo `/api/v1/invoices` (el nombre
-de la ruta HTTP y el nombre de la tabla en la base de datos son
-independientes entre sí — cambiar uno no obliga a cambiar el otro).
+**`facturas` table (previously `invoices`)**
+The SQLAlchemy model in `models/invoice.py` uses `__tablename__ = "facturas"`.
+The API endpoints stay under the `/api/v1/invoices` prefix (the HTTP route
+name and the database table name are independent of each other — renaming
+one doesn't require renaming the other).

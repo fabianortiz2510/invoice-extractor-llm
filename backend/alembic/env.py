@@ -10,7 +10,7 @@ from alembic import context
 from src.core.config import settings
 from src.core.database import Base
 
-# Registra los modelos en Base.metadata para autogenerate/create.
+# Registers the models in Base.metadata for autogenerate/create.
 from src.models import invoice as _invoice_model  # noqa: F401
 
 config = context.config

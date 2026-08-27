@@ -1,4 +1,4 @@
-"""Esquema de datos que el LLM debe devolver, validado con Pydantic."""
+"""Data schema the LLM must return, validated with Pydantic."""
 
 import re
 from typing import Optional
@@ -7,26 +7,26 @@ from pydantic import BaseModel, Field, field_validator
 
 
 class InvoiceExtraction(BaseModel):
-    """Estructura JSON estricta que se le pide al LLM.
+    """Strict JSON structure requested from the LLM.
 
-    Solo `fecha_emision` y `valor_total` son obligatorios para el flujo;
-    el resto son mejores esfuerzos y pueden llegar como null.
+    Only `fecha_emision` and `valor_total` are required for the flow; the
+    rest are best-effort and may come back as null.
     """
 
     fecha_emision: Optional[str] = Field(
-        default=None, description="Fecha de emisión de la factura, idealmente YYYY-MM-DD"
+        default=None, description="Invoice issue date, ideally YYYY-MM-DD"
     )
     valor_total: Optional[float] = Field(
-        default=None, description="Valor total a pagar, como número sin símbolos de moneda"
+        default=None, description="Total amount due, as a number without currency symbols"
     )
     moneda: Optional[str] = Field(
-        default=None, description="Código o símbolo de la moneda, ej. COP, USD, $"
+        default=None, description="Currency code or symbol, e.g. COP, USD, $"
     )
     proveedor: Optional[str] = Field(
-        default=None, description="Nombre del proveedor o emisor de la factura"
+        default=None, description="Name of the invoice's provider/issuer"
     )
     numero_factura: Optional[str] = Field(
-        default=None, description="Número o folio de la factura"
+        default=None, description="Invoice number or reference"
     )
 
     @field_validator("fecha_emision", "moneda", "proveedor", "numero_factura", mode="before")
@@ -39,13 +39,13 @@ class InvoiceExtraction(BaseModel):
     @field_validator("valor_total", mode="before")
     @classmethod
     def _coerce_valor_total(cls, value):
-        """Acepta números o strings tipo '$1.234,56' y los convierte a float."""
+        """Accepts numbers or strings like '$1,234.56' and converts them to float."""
         if value is None or value == "":
             return None
         if isinstance(value, (int, float)):
             return float(value)
         if not isinstance(value, str):
-            raise ValueError(f"Tipo inválido para valor_total: {type(value)}")
+            raise ValueError(f"Invalid type for valor_total: {type(value)}")
 
         cleaned = re.sub(r"[^0-9.,-]", "", value.strip())
         if not cleaned:
@@ -53,10 +53,10 @@ class InvoiceExtraction(BaseModel):
 
         if "," in cleaned and "." in cleaned:
             if cleaned.rfind(",") > cleaned.rfind("."):
-                # coma como separador decimal: 1.234,56 -> 1234.56
+                # comma as decimal separator: 1.234,56 -> 1234.56
                 cleaned = cleaned.replace(".", "").replace(",", ".")
             else:
-                # punto como separador decimal: 1,234.56 -> 1234.56
+                # dot as decimal separator: 1,234.56 -> 1234.56
                 cleaned = cleaned.replace(",", "")
         elif "," in cleaned:
             decimals = cleaned.split(",")[-1]
@@ -68,4 +68,4 @@ class InvoiceExtraction(BaseModel):
         try:
             return float(cleaned)
         except ValueError as exc:
-            raise ValueError(f"No se pudo convertir valor_total a número: {value!r}") from exc
+            raise ValueError(f"Could not convert valor_total to a number: {value!r}") from exc

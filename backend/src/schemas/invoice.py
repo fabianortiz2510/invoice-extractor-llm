@@ -1,4 +1,4 @@
-"""Esquemas Pydantic de entrada/salida de la API (distintos del esquema del LLM)."""
+"""Pydantic input/output schemas for the API (distinct from the LLM's schema)."""
 
 from datetime import datetime
 from typing import Optional
@@ -22,7 +22,7 @@ class InvoiceResponse(BaseModel):
 
 
 class InvoiceListItem(BaseModel):
-    """Versión resumida para el listado de historial (sin el JSON crudo)."""
+    """Summary version for the history listing (without the raw JSON)."""
 
     id: str
     filename: str
