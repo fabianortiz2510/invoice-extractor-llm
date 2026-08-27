@@ -1,5 +1,12 @@
+import base64
 import os
 from abc import ABC, abstractmethod
+
+import anthropic
+from google import genai
+from google.genai import types
+from openai import OpenAI
+
 
 class LLMError(Exception):
     """Error controlado al comunicarse con el proveedor de LLM."""
@@ -28,13 +35,6 @@ class OpenAIVisionClient(BaseLLMClient):
                 "Falta la variable de entorno OPENAI_API_KEY. "
                 "Configúrala en tu archivo .env."
             )
-        try:
-            from openai import OpenAI
-        except ImportError as exc:
-            raise LLMError(
-                "El paquete 'openai' no está instalado. Ejecuta: pip install -r requirements.txt"
-            ) from exc
-
         self._client = OpenAI(api_key=api_key)
         self._model = os.getenv("OPENAI_VISION_MODEL", "gpt-4o")
 
@@ -78,13 +78,6 @@ class AnthropicVisionClient(BaseLLMClient):
                 "Falta la variable de entorno ANTHROPIC_API_KEY. "
                 "Configúrala en tu archivo .env."
             )
-        try:
-            import anthropic
-        except ImportError as exc:
-            raise LLMError(
-                "El paquete 'anthropic' no está instalado. Ejecuta: pip install -r requirements.txt"
-            ) from exc
-
         self._client = anthropic.Anthropic(api_key=api_key)
         self._model = os.getenv("ANTHROPIC_VISION_MODEL", "claude-sonnet-5")
 
@@ -130,20 +123,10 @@ class GeminiVisionClient(BaseLLMClient):
                 "Falta la variable de entorno GEMINI_API_KEY. "
                 "Configúrala en tu archivo .env."
             )
-        try:
-            from google import genai
-        except ImportError as exc:
-            raise LLMError(
-                "El paquete 'google-genai' no está instalado. Ejecuta: pip install -r requirements.txt"
-            ) from exc
-
         self._client = genai.Client(api_key=api_key)
         self._model = os.getenv("GEMINI_VISION_MODEL", "gemini-3.5-flash")
 
     def extract(self, b64_image: str, mime_type: str, system_prompt: str, user_prompt: str) -> str:
-        from google.genai import types
-        import base64
-
         try:
             response = self._client.models.generate_content(
                 model=self._model,
