@@ -1,13 +1,5 @@
-"""Capa de abstracción sobre proveedores de LLM con capacidad de visión.
-
-Selecciona el proveedor mediante la variable de entorno LLM_PROVIDER
-(openai | anthropic | gemini). Cada cliente lee su propia API key desde
-variables de entorno; ninguna key está hardcodeada en el código.
-"""
-
 import os
 from abc import ABC, abstractmethod
-
 
 class LLMError(Exception):
     """Error controlado al comunicarse con el proveedor de LLM."""
@@ -174,10 +166,7 @@ class GeminiVisionClient(BaseLLMClient):
         return text
 
 
-def get_llm_client() -> BaseLLMClient:
-    """Factory: instancia el cliente LLM según LLM_PROVIDER (openai | anthropic | gemini)."""
-    provider = os.getenv("LLM_PROVIDER", "openai").strip().lower()
-
+def _build_client(provider: str) -> BaseLLMClient:
     if provider == "openai":
         return OpenAIVisionClient()
     if provider == "anthropic":
@@ -186,5 +175,28 @@ def get_llm_client() -> BaseLLMClient:
         return GeminiVisionClient()
 
     raise LLMError(
-        f"LLM_PROVIDER='{provider}' no es válido. Usa 'openai', 'anthropic' o 'gemini' en tu archivo .env."
+        f"'{provider}' no es un proveedor válido. Usa 'openai', 'anthropic' o 'gemini'."
     )
+
+
+def get_llm_client() -> BaseLLMClient:
+    """Factory: instancia el cliente LLM primario según LLM_PROVIDER (openai | anthropic | gemini)."""
+    provider = os.getenv("LLM_PROVIDER", "openai").strip().lower()
+    try:
+        return _build_client(provider)
+    except LLMError as exc:
+        raise LLMError(f"LLM_PROVIDER={exc}") from exc
+
+
+def get_fallback_llm_client() -> BaseLLMClient | None:
+    """Factory: instancia el cliente LLM de fallback según LLM_FALLBACK_PROVIDER.
+
+    Devuelve None si la variable no está configurada (el fallback es opcional).
+    """
+    provider = os.getenv("LLM_FALLBACK_PROVIDER", "").strip().lower()
+    if not provider:
+        return None
+    try:
+        return _build_client(provider)
+    except LLMError as exc:
+        raise LLMError(f"LLM_FALLBACK_PROVIDER={exc}") from exc

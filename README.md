@@ -20,12 +20,14 @@ invoice-extractor-llm/
 │   ├── main.py
 │   ├── requirements.txt
 │   ├── Dockerfile
-│   ├── alembic/                    # migraciones
+│   ├── alembic/                    # migraciones (versionan el esquema de la tabla `facturas`)
 │   └── src/
-│       ├── core/                   # config, conexión a BD
-│       ├── shared/models/          # mixin compartido (id, created_at)
-│       └── domains/invoices/       # modelo, schemas, service, router,
-│                                     # extractor.py y llm_clients.py (capa LLM)
+│       ├── core/                    # config (pydantic-settings), conexión a BD (SQLAlchemy async)
+│       ├── llm/                     # clients.py (OpenAI/Anthropic/Gemini), schema.py, extractor.py
+│       ├── models/                  # base.py (mixin id/created_at), invoice.py (tabla `facturas`)
+│       ├── schemas/                 # invoice.py — esquemas Pydantic de entrada/salida de la API
+│       ├── services/                # invoice_service.py — consultas a la base de datos
+│       └── routers/                 # invoice_router.py — endpoints HTTP
 ├── frontend/                       # SPA React + Vite + TypeScript + Tailwind
 │   └── src/
 │       ├── lib/api.ts               # cliente axios
@@ -36,19 +38,28 @@ invoice-extractor-llm/
 └── docs/                             # coloca aquí facturas de prueba
 ```
 
+Organización **por capa técnica** (no por dominio/feature): como el proyecto solo tiene un recurso
+(facturas), cada carpeta agrupa archivos del mismo tipo (todos los modelos en `models/`, todos los
+esquemas en `schemas/`, etc.) en vez de una carpeta por feature.
+
 ## Instalación y arranque
 
 ### 1. Variables de entorno
 
 Copia `.env.example` a `.env` en la raíz del repo y completa:
 
-- `LLM_PROVIDER`: `openai`, `anthropic` o `gemini`.
-- La API key del proveedor elegido (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY` o
-  `GEMINI_API_KEY`). Ninguna key está hardcodeada; cada cliente la lee de su
-  propia variable de entorno.
+- `LLM_PROVIDER`: el proyecto soporta `openai`, `anthropic` y `gemini` (ver
+  `backend/src/llm/clients.py`), pero el `.env.example` solo trae configurado
+  Gemini por defecto.
+- `GEMINI_API_KEY`: tu key de Google AI Studio. Ninguna key está hardcodeada;
+  cada cliente la lee de su propia variable de entorno (si quisieras usar
+  OpenAI o Anthropic en su lugar, agrega `OPENAI_API_KEY`/`ANTHROPIC_API_KEY`
+  y cambia `LLM_PROVIDER`).
 - Las variables de Postgres (`POSTGRES_USER`, `POSTGRES_PASSWORD`,
   `POSTGRES_DB`, `DATABASE_URL`) ya vienen con valores por defecto que
-  funcionan tal cual con `docker-compose.yml`.
+  funcionan tal cual con `docker-compose.yml` — puedes cambiarlos, pero
+  `DATABASE_URL` siempre debe coincidir con los otros tres (mismo usuario,
+  contraseña y nombre de base de datos).
 
 ### 2. Backend + base de datos (Docker)
 
@@ -142,7 +153,7 @@ layouts de factura).
 1. El prompt de sistema le pide al modelo responder **exclusivamente** con un
    JSON de esquema fijo.
 2. La respuesta se parsea (`json.loads`, limpiando posibles fences ```json)
-   y se valida con un modelo **Pydantic** (`llm_schema.py: InvoiceExtraction`).
+   y se valida con un modelo **Pydantic** (`llm/schema.py: InvoiceExtraction`).
 3. Si falla el parseo o la validación, se hace **un reintento** enviando al
    modelo el error obtenido y pidiéndole explícitamente que corrija el
    formato.
@@ -152,8 +163,15 @@ layouts de factura).
    puede interpretar, se guarda tal cual y se marca `fecha_emision_valida =
    false` en vez de fallar en silencio.
 
-**Capa de abstracción de proveedores (`llm_clients.py`)**
+**Capa de abstracción de proveedores (`llm/clients.py`)**
 `BaseLLMClient` define una interfaz común (`extract(...)`) implementada por
 `OpenAIVisionClient`, `AnthropicVisionClient` y `GeminiVisionClient`. La
 factory `get_llm_client()` decide cuál instanciar según `LLM_PROVIDER` — este
-este archivo es código puro sin dependencias de framework.
+archivo es código puro sin dependencias de framework (no usa `Settings` de
+`core/config.py`, lee las variables de entorno directamente con `os.getenv`).
+
+**Tabla `facturas` (antes `invoices`)**
+El modelo SQLAlchemy en `models/invoice.py` usa `__tablename__ = "facturas"`.
+Los endpoints de la API siguen bajo el prefijo `/api/v1/invoices` (el nombre
+de la ruta HTTP y el nombre de la tabla en la base de datos son
+independientes entre sí — cambiar uno no obliga a cambiar el otro).
