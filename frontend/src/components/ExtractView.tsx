@@ -49,20 +49,20 @@ export function ExtractView({ onExtracted }: ExtractViewProps) {
   return (
     <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
       <div className="space-y-4">
-        <label className="block text-sm font-medium text-slate-300">
+        <label className="block text-sm font-medium text-slate-700">
           Carga una factura (PNG, JPG o PDF)
         </label>
         <input
           type="file"
           accept={ACCEPTED_EXTENSIONS.join(',')}
           onChange={handleFileChange}
-          className="block w-full cursor-pointer rounded-lg border border-slate-700 bg-slate-900 p-2 text-sm text-slate-300 file:mr-4 file:rounded-md file:border-0 file:bg-indigo-600 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-indigo-500"
+          className="block w-full cursor-pointer rounded-lg border border-slate-300 bg-white p-2 text-sm text-slate-700 shadow-sm file:mr-4 file:rounded-md file:border-0 file:bg-teal-600 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-teal-500"
         />
 
         {previewUrl && (
-          <div className="rounded-lg border border-slate-800 bg-slate-900 p-3">
+          <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
             {isPdf ? (
-              <p className="text-sm text-slate-400">📄 Archivo PDF cargado. Se procesará la primera página.</p>
+              <p className="text-sm text-slate-500">📄 Archivo PDF cargado. Se procesará la primera página.</p>
             ) : (
               <img src={previewUrl} alt="Vista previa de la factura" className="max-h-80 rounded-md" />
             )}
@@ -72,24 +72,24 @@ export function ExtractView({ onExtracted }: ExtractViewProps) {
         <button
           onClick={handleExtract}
           disabled={!file || loading}
-          className="w-full rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+          className="w-full rounded-lg bg-teal-600 px-4 py-2 font-medium text-white transition hover:bg-teal-500 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {loading ? 'Analizando factura con el LLM…' : 'Extraer datos'}
         </button>
       </div>
 
       <div className="space-y-4">
-        <h2 className="text-sm font-medium text-slate-300">Resultado</h2>
+        <h2 className="text-sm font-medium text-slate-700">Resultado</h2>
 
         {error && (
-          <div className="rounded-lg border border-red-800 bg-red-950/50 p-4 text-sm text-red-300">
+          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
             {error}
           </div>
         )}
 
         {result && (
           <div className="space-y-4">
-            <div className="rounded-lg border border-emerald-800 bg-emerald-950/30 p-4 text-sm text-emerald-300">
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
               Datos extraídos correctamente.
             </div>
 
@@ -104,15 +104,15 @@ export function ExtractView({ onExtracted }: ExtractViewProps) {
             </div>
 
             {result.fecha_emision && !result.fecha_emision_valida && (
-              <div className="rounded-lg border border-amber-800 bg-amber-950/30 p-3 text-xs text-amber-300">
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
                 La fecha extraída no pudo normalizarse a formato YYYY-MM-DD; se guardó tal como la
                 devolvió el modelo.
               </div>
             )}
 
-            <details className="rounded-lg border border-slate-800 bg-slate-900 p-3">
-              <summary className="cursor-pointer text-sm text-slate-400">Ver respuesta cruda del LLM</summary>
-              <pre className="mt-2 overflow-x-auto whitespace-pre-wrap text-xs text-slate-400">
+            <details className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+              <summary className="cursor-pointer text-sm text-slate-500">Ver respuesta cruda del LLM</summary>
+              <pre className="mt-2 overflow-x-auto whitespace-pre-wrap text-xs text-slate-600">
                 {result.raw_llm_response}
               </pre>
             </details>
@@ -136,9 +136,9 @@ function fieldOrFallback(value: string | null, valid: boolean): string {
 
 function Field({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-slate-800 bg-slate-900 p-3">
+    <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
       <p className="text-xs text-slate-500">{label}</p>
-      <p className="mt-1 text-sm font-medium text-slate-200">{value}</p>
+      <p className="mt-1 text-sm font-medium text-slate-900">{value}</p>
     </div>
   )
 }

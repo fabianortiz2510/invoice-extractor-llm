@@ -20,7 +20,7 @@ export function HistoryView({ refreshKey }: HistoryViewProps) {
   }, [refreshKey])
 
   if (loading) return <p className="text-sm text-slate-500">Cargando historial…</p>
-  if (error) return <p className="text-sm text-red-400">{error}</p>
+  if (error) return <p className="text-sm text-red-600">{error}</p>
   if (invoices.length === 0) {
     return (
       <p className="text-sm text-slate-500">
@@ -30,9 +30,9 @@ export function HistoryView({ refreshKey }: HistoryViewProps) {
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-slate-800">
-      <table className="min-w-full divide-y divide-slate-800 text-sm">
-        <thead className="bg-slate-900 text-left text-xs uppercase tracking-wide text-slate-500">
+    <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+      <table className="min-w-full divide-y divide-slate-200 text-sm">
+        <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
           <tr>
             <Th>Archivo</Th>
             <Th>Fecha emisión</Th>
@@ -43,9 +43,9 @@ export function HistoryView({ refreshKey }: HistoryViewProps) {
             <Th>Procesado</Th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-800">
+        <tbody className="divide-y divide-slate-100">
           {invoices.map((invoice) => (
-            <tr key={invoice.id} className="hover:bg-slate-900/50">
+            <tr key={invoice.id} className="hover:bg-slate-50">
               <Td>{invoice.filename}</Td>
               <Td>
                 {invoice.fecha_emision ?? '—'}
@@ -69,5 +69,5 @@ function Th({ children }: { children: React.ReactNode }) {
 }
 
 function Td({ children }: { children: React.ReactNode }) {
-  return <td className="whitespace-nowrap px-4 py-3 text-slate-300">{children}</td>
+  return <td className="whitespace-nowrap px-4 py-3 text-slate-700">{children}</td>
 }
