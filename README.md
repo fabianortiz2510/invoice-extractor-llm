@@ -24,6 +24,7 @@ invoice-extractor-llm/
 │   └── src/
 │       ├── core/                    # config (pydantic-settings), DB connection (SQLAlchemy async)
 │       ├── llm/                     # clients.py (litellm), schema.py, extractor.py
+│       ├── prompts/                 # system_prompt.md, user_prompt.md, correction_prompt.md
 │       ├── models/                  # base.py (id/created_at mixin), invoice.py (`facturas` table)
 │       ├── schemas/                 # invoice.py — Pydantic API input/output schemas
 │       ├── services/                # invoice_service.py — database queries
@@ -150,9 +151,15 @@ sent directly to the vision-capable model, with no intermediate OCR step
 that could introduce transcription errors and lose the document's spatial
 layout (useful for the model to understand tables and invoice layouts).
 
+**Prompts live in `src/prompts/` (`.md` files)**
+`system_prompt.md`, `user_prompt.md`, and `correction_prompt.md` are the
+single source of truth for what gets sent to the LLM — `llm/extractor.py`
+reads them at import time instead of hardcoding the text as Python string
+constants. Editing a prompt is a content change, not a code change.
+
 **How is the LLM's JSON validated?**
-1. The system prompt asks the model to respond **exclusively** with a JSON
-   object matching a fixed schema.
+1. The system prompt (`system_prompt.md`) asks the model to respond
+   **exclusively** with a JSON object matching a fixed schema.
 2. The response is parsed (`json.loads`, stripping any ```json fences) and
    validated against a **Pydantic** model (`llm/schema.py: InvoiceExtraction`).
 3. If parsing or validation fails, **one retry** is made, sending the model

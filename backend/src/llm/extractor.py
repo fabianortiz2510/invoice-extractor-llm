@@ -6,6 +6,7 @@ import json
 import logging
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
 from typing import Optional
 
 import pymupdf  # PyMuPDF
@@ -21,19 +22,17 @@ logger = logging.getLogger(__name__)
 SUPPORTED_IMAGE_EXTENSIONS = {"png", "jpg", "jpeg"}
 MAX_RETRIES = 2  # 1 initial attempt + 1 correction retry
 
-SYSTEM_PROMPT = """Eres un asistente experto en extraer datos de facturas de servicios \
-(agua, luz, gas, telecomunicaciones, etc.) a partir de una imagen.
-Devuelve EXCLUSIVAMENTE un objeto JSON valido, sin texto adicional, sin markdown y sin explicaciones.
-El JSON debe tener exactamente estas claves:
-- "fecha_emision": fecha de emision de la factura en formato YYYY-MM-DD. Si no puedes determinarla, usa null.
-- "valor_total": valor total a pagar, como numero (sin simbolos de moneda ni separadores de miles). Si no puedes determinarlo, usa null.
-- "moneda": codigo o simbolo de la moneda (ej. "COP", "USD", "EUR", "$"). Si no aparece, usa null.
-- "proveedor": nombre del proveedor o emisor de la factura. Si no aparece, usa null.
-- "numero_factura": numero o folio de la factura. Si no aparece, usa null.
+PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts"
 
-No inventes datos. Si un campo no es visible o no esta presente en la factura, usa null para ese campo."""
 
-USER_PROMPT = "Extrae los datos de la factura de la imagen adjunta y responde solo con el JSON solicitado."
+def _load_prompt(filename: str) -> str:
+    """Read a prompt's raw text from src/prompts/ — the single source of truth."""
+    return (PROMPTS_DIR / filename).read_text(encoding="utf-8").strip()
+
+
+SYSTEM_PROMPT = _load_prompt("system_prompt.md")
+USER_PROMPT = _load_prompt("user_prompt.md")
+CORRECTION_PROMPT_TEMPLATE = _load_prompt("correction_prompt.md")
 
 
 @dataclass
@@ -152,12 +151,7 @@ def extract_invoice_data(file_bytes: bytes, filename: str) -> ExtractionResult:
     for attempt in range(MAX_RETRIES):
         prompt = USER_PROMPT
         if attempt > 0:
-            prompt = (
-                f"{USER_PROMPT}\n\n"
-                f"Tu respuesta anterior no cumplia el formato JSON solicitado. "
-                f"Error de validacion: {last_error}\n"
-                "Corrige el formato y responde EXCLUSIVAMENTE con el JSON valido, sin texto adicional."
-            )
+            prompt = CORRECTION_PROMPT_TEMPLATE.format(user_prompt=USER_PROMPT, error=last_error)
 
         try:
             raw_response = call_llm(b64_image, mime_type, SYSTEM_PROMPT, prompt)
