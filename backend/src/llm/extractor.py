@@ -93,12 +93,7 @@ def normalize_date(raw_date: Optional[str]) -> tuple[Optional[str], bool]:
     raw_date = str(raw_date).strip()
     if not raw_date:
         return None, False
-
-    # Try a strict ISO parse first: SYSTEM_PROMPT already asks the LLM for
-    # YYYY-MM-DD, and that format is unambiguous (year comes first). Going
-    # straight to dateutil with dayfirst=True would misinterpret already
-    # correct ISO dates when day and month are both <= 12 (e.g. it turns
-    # "2024-05-01" into 2024-01-05).
+    
     try:
         parsed = datetime.strptime(raw_date, "%Y-%m-%d")
         return parsed.strftime("%Y-%m-%d"), True
