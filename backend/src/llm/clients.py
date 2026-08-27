@@ -1,137 +1,69 @@
-import base64
-import os
-from abc import ABC, abstractmethod
+"""Capa de llamada al LLM usando litellm.
 
-from google import genai
-from google.genai import types
-from openai import OpenAI
+litellm unifica múltiples proveedores (OpenAI, Gemini, y muchos más) bajo una
+sola interfaz de mensajes estilo OpenAI, con soporte nativo de imágenes
+(vision) y fallback automático entre modelos. El modelo se especifica como
+"proveedor/modelo" (ej. "gemini/gemini-3.5-flash", "openai/gpt-4o") — litellm
+decide internamente qué API llamar y qué variable de entorno de API key usar
+según el prefijo (GEMINI_API_KEY, OPENAI_API_KEY, etc.).
+"""
+
+import os
+
+import litellm
 
 
 class LLMError(Exception):
-    """Error controlado al comunicarse con el proveedor de LLM."""
+    """Error controlado al comunicarse con el LLM."""
 
 
-class BaseLLMClient(ABC):
-    """Interfaz común que deben implementar todos los proveedores de LLM."""
+def _fallback_models() -> list[str] | None:
+    """Lista de modelos de fallback para litellm, o None si no hay ninguno configurado.
 
-    @abstractmethod
-    def extract(self, b64_image: str, mime_type: str, system_prompt: str, user_prompt: str) -> str:
-        """Envía la imagen (base64) + prompts al LLM y devuelve el texto crudo de la respuesta.
-
-        Se espera que la respuesta sea un JSON (como texto); la validación
-        del contenido se hace en extractor.py, no aquí.
-        """
-        raise NotImplementedError
-
-
-class OpenAIVisionClient(BaseLLMClient):
-    """Cliente para modelos de OpenAI con capacidad de visión (ej. gpt-4o)."""
-
-    def __init__(self):
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
-            raise LLMError(
-                "Falta la variable de entorno OPENAI_API_KEY. "
-                "Configúrala en tu archivo .env."
-            )
-        self._client = OpenAI(api_key=api_key)
-        self._model = os.getenv("OPENAI_VISION_MODEL", "gpt-4o")
-
-    def extract(self, b64_image: str, mime_type: str, system_prompt: str, user_prompt: str) -> str:
-        try:
-            response = self._client.chat.completions.create(
-                model=self._model,
-                max_tokens=1024,
-                temperature=0,
-                response_format={"type": "json_object"},
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {
-                        "role": "user",
-                        "content": [
-                            {"type": "text", "text": user_prompt},
-                            {
-                                "type": "image_url",
-                                "image_url": {"url": f"data:{mime_type};base64,{b64_image}"},
-                            },
-                        ],
-                    },
-                ],
-            )
-        except Exception as exc:  # noqa: BLE001 - se traduce a un error de dominio controlado
-            raise LLMError(f"Error al llamar a la API de OpenAI: {exc}") from exc
-
-        content = response.choices[0].message.content
-        if not content:
-            raise LLMError("OpenAI devolvió una respuesta vacía.")
-        return content
-
-
-class GeminiVisionClient(BaseLLMClient):
-    """Cliente para modelos de Google Gemini con capacidad de visión."""
-
-    def __init__(self):
-        api_key = os.getenv("GEMINI_API_KEY")
-        if not api_key:
-            raise LLMError(
-                "Falta la variable de entorno GEMINI_API_KEY. "
-                "Configúrala en tu archivo .env."
-            )
-        self._client = genai.Client(api_key=api_key)
-        self._model = os.getenv("GEMINI_VISION_MODEL", "gemini-3.5-flash")
-
-    def extract(self, b64_image: str, mime_type: str, system_prompt: str, user_prompt: str) -> str:
-        try:
-            response = self._client.models.generate_content(
-                model=self._model,
-                contents=[
-                    types.Part.from_bytes(data=base64.b64decode(b64_image), mime_type=mime_type),
-                    user_prompt,
-                ],
-                config=types.GenerateContentConfig(
-                    system_instruction=system_prompt,
-                    response_mime_type="application/json",
-                    temperature=0,
-                ),
-            )
-        except Exception as exc:  # noqa: BLE001 - se traduce a un error de dominio controlado
-            raise LLMError(f"Error al llamar a la API de Gemini: {exc}") from exc
-
-        text = response.text
-        if not text:
-            raise LLMError("Gemini devolvió una respuesta vacía.")
-        return text
-
-
-def _build_client(provider: str) -> BaseLLMClient:
-    if provider == "openai":
-        return OpenAIVisionClient()
-    if provider == "gemini":
-        return GeminiVisionClient()
-
-    raise LLMError(
-        f"'{provider}' no es un proveedor válido. Usa 'openai' o 'gemini'."
-    )
-
-
-def get_llm_client() -> BaseLLMClient:
-    """Factory: instancia el cliente LLM primario según LLM_PROVIDER (openai | gemini)."""
-    provider = os.getenv("LLM_PROVIDER", "openai").strip().lower()
-    try:
-        return _build_client(provider)
-    except LLMError as exc:
-        raise LLMError(f"LLM_PROVIDER={exc}") from exc
-
-
-def get_fallback_llm_client() -> BaseLLMClient | None:
-    """Factory: instancia el cliente LLM de fallback según LLM_FALLBACK_PROVIDER.
-
-    Devuelve None si la variable no está configurada (el fallback es opcional).
+    Se devuelve None (no una lista vacía) cuando no hay fallback: litellm
+    activa su mecanismo interno de fallback con solo comprobar
+    `fallbacks is not None`, así que una lista vacía igual lo activaría
+    innecesariamente.
     """
-    provider = os.getenv("LLM_FALLBACK_PROVIDER", "").strip().lower()
-    if not provider:
-        return None
+    fallback = os.getenv("LLM_FALLBACK", "").strip()
+    return [fallback] if fallback else None
+
+
+def call_llm(b64_image: str, mime_type: str, system_prompt: str, user_prompt: str) -> str:
+    """Envía la imagen (base64) + prompts al LLM primario (LLM_PRIMARY).
+
+    Si LLM_FALLBACK está configurado y el primario falla, litellm reintenta
+    automáticamente con ese modelo antes de propagar el error. Devuelve el
+    texto crudo de la respuesta (se espera JSON como texto); la validación
+    del contenido se hace en extractor.py, no aquí.
+    """
+    primary_model = os.getenv("LLM_PRIMARY", "gemini/gemini-3.5-flash").strip()
+
     try:
-        return _build_client(provider)
-    except LLMError as exc:
-        raise LLMError(f"LLM_FALLBACK_PROVIDER={exc}") from exc
+        response = litellm.completion(
+            model=primary_model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": user_prompt},
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:{mime_type};base64,{b64_image}"},
+                        },
+                    ],
+                },
+            ],
+            response_format={"type": "json_object"},
+            fallbacks=_fallback_models(),
+            max_tokens=1024,
+            temperature=0,
+        )
+    except Exception as exc:  # noqa: BLE001 - se traduce a un error de dominio controlado
+        raise LLMError(f"Error al llamar al LLM ({primary_model}): {exc}") from exc
+
+    content = response.choices[0].message.content
+    if not content:
+        raise LLMError("El LLM devolvió una respuesta vacía.")
+    return content

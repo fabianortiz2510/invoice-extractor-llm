@@ -13,7 +13,7 @@ from dateutil import parser as date_parser
 from PIL import Image
 from pydantic import ValidationError
 
-from src.llm.clients import BaseLLMClient, LLMError, get_fallback_llm_client, get_llm_client
+from src.llm.clients import LLMError, call_llm
 from src.llm.schema import InvoiceExtraction
 
 logger = logging.getLogger(__name__)
@@ -129,15 +129,24 @@ def _parse_and_validate(raw_text: str) -> InvoiceExtraction:
     return InvoiceExtraction.model_validate(payload)
 
 
-def _extract_with_client(client: BaseLLMClient, b64_image: str, mime_type: str) -> ExtractionResult:
-    """Intenta extraer los datos con un cliente LLM ya instanciado.
+def extract_invoice_data(file_bytes: bytes, filename: str) -> ExtractionResult:
+    """Punto de entrada principal: procesa un archivo de factura de punta a punta.
 
-    Reintenta hasta MAX_RETRIES veces si el LLM devuelve un JSON invalido
-    (pidiendole que corrija el formato). Si el cliente falla por un error de
-    API (servicio caido, key invalida, etc.), retorna de inmediato sin
-    reintentar contra el mismo cliente — ese caso lo maneja el fallback en
-    extract_invoice_data.
+    El fallback entre proveedores (LLM_PRIMARY / LLM_FALLBACK) lo resuelve
+    litellm internamente dentro de call_llm() — aquí solo se reintenta contra
+    el mismo LLM cuando la respuesta no es un JSON válido, pidiéndole que
+    corrija el formato.
+
+    Función síncrona (litellm.completion es síncrona) — el router FastAPI
+    debe llamarla vía run_in_threadpool para no bloquear el event loop.
     """
+    try:
+        image_bytes, mime_type = file_to_image_bytes(file_bytes, filename)
+    except ValueError as exc:
+        return ExtractionResult(success=False, error=str(exc))
+
+    b64_image = base64.standard_b64encode(image_bytes).decode("utf-8")
+
     raw_response = None
     last_error = None
 
@@ -152,7 +161,7 @@ def _extract_with_client(client: BaseLLMClient, b64_image: str, mime_type: str) 
             )
 
         try:
-            raw_response = client.extract(b64_image, mime_type, SYSTEM_PROMPT, prompt)
+            raw_response = call_llm(b64_image, mime_type, SYSTEM_PROMPT, prompt)
         except LLMError as exc:
             return ExtractionResult(success=False, error=str(exc), raw_response=raw_response)
 
@@ -181,61 +190,4 @@ def _extract_with_client(client: BaseLLMClient, b64_image: str, mime_type: str) 
             f"{MAX_RETRIES} intentos. Ultimo error: {last_error}"
         ),
         raw_response=raw_response,
-    )
-
-
-def extract_invoice_data(file_bytes: bytes, filename: str) -> ExtractionResult:
-    """Punto de entrada principal: procesa un archivo de factura de punta a punta.
-
-    Usa el proveedor LLM_PROVIDER como primario. Si falla por cualquier razón
-    (error de API, JSON invalido tras los reintentos, etc.) y hay un
-    LLM_FALLBACK_PROVIDER configurado, reintenta el flujo completo con ese
-    segundo proveedor antes de darse por vencido.
-
-    Función síncrona (los SDKs de OpenAI/Gemini son síncronos) — el
-    router FastAPI debe llamarla vía run_in_threadpool para no bloquear el
-    event loop.
-    """
-    try:
-        image_bytes, mime_type = file_to_image_bytes(file_bytes, filename)
-    except ValueError as exc:
-        return ExtractionResult(success=False, error=str(exc))
-
-    try:
-        primary_client = get_llm_client()
-    except LLMError as exc:
-        return ExtractionResult(success=False, error=str(exc))
-
-    b64_image = base64.standard_b64encode(image_bytes).decode("utf-8")
-
-    primary_result = _extract_with_client(primary_client, b64_image, mime_type)
-    if primary_result.success:
-        return primary_result
-
-    try:
-        fallback_client = get_fallback_llm_client()
-    except LLMError as exc:
-        logger.warning("No se pudo instanciar el cliente de fallback: %s", exc)
-        return primary_result
-
-    if fallback_client is None:
-        return primary_result
-
-    logger.warning(
-        "Proveedor primario (%s) fallo: %s. Reintentando con fallback (%s).",
-        type(primary_client).__name__,
-        primary_result.error,
-        type(fallback_client).__name__,
-    )
-    fallback_result = _extract_with_client(fallback_client, b64_image, mime_type)
-    if fallback_result.success:
-        return fallback_result
-
-    return ExtractionResult(
-        success=False,
-        error=(
-            f"Proveedor primario ({type(primary_client).__name__}) fallo: {primary_result.error} | "
-            f"Proveedor de fallback ({type(fallback_client).__name__}) tambien fallo: {fallback_result.error}"
-        ),
-        raw_response=fallback_result.raw_response or primary_result.raw_response,
     )
