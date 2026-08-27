@@ -1,8 +1,8 @@
-"""initial migration: invoices table
+"""initial migration: facturas table
 
-Revision ID: 0001_initial
+Revision ID: version_0
 Revises:
-Create Date: 2026-08-24
+Create Date: 2026-08-26
 
 """
 from typing import Sequence, Union
@@ -10,7 +10,7 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 
-revision: str = "0001_initial"
+revision: str = "version_0"
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -18,7 +18,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     op.create_table(
-        "invoices",
+        "facturas",
         sa.Column("id", sa.String(length=36), primary_key=True),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column("filename", sa.String(length=255), nullable=False),
@@ -33,4 +33,4 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_table("invoices")
+    op.drop_table("facturas")
