@@ -31,14 +31,14 @@ class InvoiceExtraction(BaseModel):
 
     @field_validator("fecha_emision", "moneda", "proveedor", "numero_factura", mode="before")
     @classmethod
-    def _blank_string_to_none(cls, value):
+    def blank_string_to_none(cls, value):
         if isinstance(value, str) and not value.strip():
             return None
         return value
 
     @field_validator("valor_total", mode="before")
     @classmethod
-    def _coerce_valor_total(cls, value):
+    def coerce_valor_total(cls, value):
         """Accepts numbers or strings like '$1,234.56' and converts them to float."""
         if value is None or value == "":
             return None

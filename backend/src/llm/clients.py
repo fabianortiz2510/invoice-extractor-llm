@@ -17,7 +17,7 @@ class LLMError(Exception):
     """Controlled error when talking to the LLM."""
 
 
-def _fallback_models() -> list[str] | None:
+def fallback_models() -> list[str] | None:
     """Fallback model list for litellm, or None if none is configured.
 
     Returns None (not an empty list) when there's no fallback: litellm's
@@ -55,7 +55,7 @@ def call_llm(b64_image: str, mime_type: str, system_prompt: str, user_prompt: st
                 },
             ],
             response_format={"type": "json_object"},
-            fallbacks=_fallback_models(),
+            fallbacks=fallback_models(),
             max_tokens=1024,
             temperature=0,
         )

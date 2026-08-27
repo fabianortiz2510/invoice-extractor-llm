@@ -25,14 +25,14 @@ MAX_RETRIES = 2  # 1 initial attempt + 1 correction retry
 PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts"
 
 
-def _load_prompt(filename: str) -> str:
+def load_prompt(filename: str) -> str:
     """Read a prompt's raw text from src/prompts/ — the single source of truth."""
     return (PROMPTS_DIR / filename).read_text(encoding="utf-8").strip()
 
 
-SYSTEM_PROMPT = _load_prompt("system_prompt.md")
-USER_PROMPT = _load_prompt("user_prompt.md")
-CORRECTION_PROMPT_TEMPLATE = _load_prompt("correction_prompt.md")
+SYSTEM_PROMPT = load_prompt("system_prompt.md")
+USER_PROMPT = load_prompt("user_prompt.md")
+CORRECTION_PROMPT_TEMPLATE = load_prompt("correction_prompt.md")
 
 
 @dataclass
@@ -48,7 +48,7 @@ def file_to_image_bytes(file_bytes: bytes, filename: str) -> tuple[bytes, str]:
     extension = filename.lower().rsplit(".", 1)[-1] if "." in filename else ""
 
     if extension == "pdf":
-        return _pdf_first_page_to_png(file_bytes), "image/png"
+        return pdf_first_page_to_png(file_bytes), "image/png"
 
     if extension in SUPPORTED_IMAGE_EXTENSIONS:
         try:
@@ -63,7 +63,7 @@ def file_to_image_bytes(file_bytes: bytes, filename: str) -> tuple[bytes, str]:
     raise ValueError(f"Formato de archivo no soportado: .{extension}")
 
 
-def _pdf_first_page_to_png(pdf_bytes: bytes) -> bytes:
+def pdf_first_page_to_png(pdf_bytes: bytes) -> bytes:
     doc = None
     try:
         doc = pymupdf.open(stream=pdf_bytes, filetype="pdf")
@@ -112,7 +112,7 @@ def normalize_date(raw_date: Optional[str]) -> tuple[Optional[str], bool]:
         return raw_date, False
 
 
-def _strip_markdown_fences(text: str) -> str:
+def strip_markdown_fences(text: str) -> str:
     cleaned = text.strip()
     if cleaned.startswith("```"):
         cleaned = cleaned.strip("`")
@@ -122,8 +122,8 @@ def _strip_markdown_fences(text: str) -> str:
     return cleaned
 
 
-def _parse_and_validate(raw_text: str) -> InvoiceExtraction:
-    cleaned = _strip_markdown_fences(raw_text)
+def parse_and_validate(raw_text: str) -> InvoiceExtraction:
+    cleaned = strip_markdown_fences(raw_text)
     payload = json.loads(cleaned)
     return InvoiceExtraction.model_validate(payload)
 
@@ -159,7 +159,7 @@ def extract_invoice_data(file_bytes: bytes, filename: str) -> ExtractionResult:
             return ExtractionResult(success=False, error=str(exc), raw_response=raw_response)
 
         try:
-            invoice = _parse_and_validate(raw_response)
+            invoice = parse_and_validate(raw_response)
         except (json.JSONDecodeError, ValidationError) as exc:
             last_error = str(exc)
             logger.warning("Attempt %d: invalid JSON from the LLM: %s", attempt + 1, last_error)
