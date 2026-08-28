@@ -51,7 +51,9 @@ invoice-extractor-llm/
 │       └── App.tsx
 ├── docker-compose.yml               # Postgres + backend
 ├── .env / .env.example
-└── docs/                             # place test invoices here
+└── docs/
+    ├── examples/                      # sample invoices to test the app with
+    └── images/                        # screenshots used in this README
 ```
 
 Organized **by technical layer** (not by domain/feature): since the project
@@ -115,8 +117,8 @@ Open `http://localhost:5173`. The frontend is already configured
 2. **"History"** tab: lists every processed invoice, read directly from
    PostgreSQL.
 
-Before submitting the project, place at least one test invoice (real or
-fictitious) in `docs/` — see `docs/README.txt`.
+At least one sample invoice (real or fictitious) ships in `docs/examples/`
+for testing the upload/extraction flow.
 
 ## API
 
