@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.core.config import settings
 from src.core.database import engine
 from src.routers.invoice_router import router as invoices_router
+from src.models import documento as _documento_model  # noqa: F401
 from src.models import invoice as _invoice_model  # noqa: F401
 
 

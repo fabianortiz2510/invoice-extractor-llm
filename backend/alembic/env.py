@@ -11,6 +11,7 @@ from src.core.config import settings
 from src.core.database import Base
 
 # Registers the models in Base.metadata for autogenerate/create.
+from src.models import documento as _documento_model  # noqa: F401
 from src.models import invoice as _invoice_model  # noqa: F401
 
 config = context.config

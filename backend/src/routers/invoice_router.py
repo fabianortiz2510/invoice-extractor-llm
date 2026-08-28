@@ -37,7 +37,11 @@ async def extract_invoice(
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=result.error)
 
     invoice = await InvoiceService.create_from_extraction(
-        db, filename=file.filename, data=result.data, raw_response=result.raw_response
+        db,
+        filename=file.filename,
+        mime_type=file.content_type or "application/octet-stream",
+        data=result.data,
+        raw_response=result.raw_response,
     )
     return invoice
 

@@ -20,14 +20,14 @@ invoice-extractor-llm/
 │   ├── main.py
 │   ├── requirements.txt
 │   ├── Dockerfile
-│   ├── alembic/                    # migrations (version the `facturas` table's schema)
+│   ├── alembic/                    # migrations (version the `documentos`/`facturas` schema)
 │   └── src/
 │       ├── core/                    # config (pydantic-settings), DB connection (SQLAlchemy async)
 │       ├── llm/                     # clients.py (litellm), schema.py, extractor.py
 │       ├── prompts/                 # system_prompt.md, user_prompt.md, correction_prompt.md
-│       ├── models/                  # base.py (id/created_at mixin), invoice.py (`facturas` table)
+│       ├── models/                  # base.py (mixin), documento.py (`documentos`), invoice.py (`facturas`)
 │       ├── schemas/                 # invoice.py — Pydantic API input/output schemas
-│       ├── services/                # invoice_service.py — database queries
+│       ├── services/                # documento_service.py, invoice_service.py — database queries
 │       └── routers/                 # invoice_router.py — HTTP endpoints
 ├── frontend/                       # React + Vite + TypeScript + Tailwind SPA
 │   └── src/
@@ -190,3 +190,16 @@ The SQLAlchemy model in `models/invoice.py` uses `__tablename__ = "facturas"`.
 The API endpoints stay under the `/api/v1/invoices` prefix (the HTTP route
 name and the database table name are independent of each other — renaming
 one doesn't require renaming the other).
+
+**`documentos` → `facturas` (two related tables, not one)**
+`documentos` holds the uploaded file's own data (`filename`, `mime_type`);
+`facturas` holds the data extracted from it (`fecha_emision`, `valor_total`,
+etc.) and points back to its `documento` via a foreign key
+(`documento_id`). This separates "what was uploaded" from "what the LLM
+extracted from it" — useful if a document is ever reprocessed, or if the
+extraction later grows to store multiple attempts per document. `Invoice`
+exposes `filename` as a Python `@property` that reads through to
+`self.documento.filename`, so the API response shape didn't need to change
+when the column moved tables — `InvoiceService.list_invoices`/`get_by_id`
+eager-load the relationship (`selectinload`) so that property never triggers
+a lazy DB call outside of an active session.
