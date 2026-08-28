@@ -98,6 +98,18 @@ curl http://localhost:8000/health
 
 Interactive API docs (Swagger): `http://localhost:8000/docs`.
 
+> **Running fully locally, without Docker:** if you already have PostgreSQL
+> installed on your machine, you don't need Docker at all. Point
+> `DATABASE_URL` in `.env` at your local instance (host `localhost` instead
+> of `db`), then, inside `backend/`:
+> ```bash
+> python -m venv venv
+> venv\Scripts\activate
+> pip install -r requirements.txt
+> alembic upgrade head
+> uvicorn main:app --reload
+> ```
+
 
 ### 3. Frontend
 
