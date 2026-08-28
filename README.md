@@ -20,6 +20,10 @@ the technical test's "Plus: SQL database integration":
 
 ![Entity-relationship diagram: documentos and facturas](docs/images/Data_Structure.png)
 
+**Real data** — the `facturas` table, populated from actual extractions:
+
+![facturas table with real rows, viewed in DBeaver](docs/images/Data.png)
+
 ## Extracted data
 
 - **Issue date** (normalized to `YYYY-MM-DD`) — required
