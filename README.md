@@ -5,6 +5,21 @@ its key data using a vision-capable LLM, and view it in a web interface.
 Architecture: **FastAPI backend + PostgreSQL** (SQLAlchemy 2.0 async +
 Alembic) and **React + Vite frontend**, in a monorepo.
 
+## Screenshots
+
+**Web interface** — upload an invoice, get the structured fields back:
+
+![App screenshot](docs/images/App.png)
+
+**Running in Docker** — backend + PostgreSQL as separate containers:
+
+![Docker Desktop showing the running containers](docs/images/docker.png)
+
+**Database schema** (`documentos` → `facturas`, viewed in DBeaver) — fulfills
+the technical test's "Plus: SQL database integration":
+
+![Entity-relationship diagram: documentos and facturas](docs/images/Data_Structure.png)
+
 ## Extracted data
 
 - **Issue date** (normalized to `YYYY-MM-DD`) — required
