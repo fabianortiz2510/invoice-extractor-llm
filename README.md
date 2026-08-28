@@ -96,18 +96,6 @@ curl http://localhost:8000/health
 
 Interactive API docs (Swagger): `http://localhost:8000/docs`.
 
-> **Running the backend outside Docker:** install `backend/requirements.txt`
-> in a virtual environment, change the `db` host to `localhost` in
-> `DATABASE_URL`, run `alembic upgrade head` inside `backend/`, then
-> `uvicorn main:app --reload`.
->
-> ⚠️ **On Windows**, if the Postgres you're pointing to runs in a Docker
-> Desktop container (even just `docker compose up db`), this can fail with
-> `ConnectionDoesNotExistError` / a reset connection — that's a known
-> incompatibility between `asyncpg` and Docker Desktop/WSL2's network proxy
-> on Windows, not a bug in this project. In that case use Option A (everything
-> in Docker) or install PostgreSQL natively on Windows (no Docker in between)
-> for this combination.
 
 ### 3. Frontend
 
@@ -141,15 +129,13 @@ fictitious) in `docs/` — see `docs/README.txt`.
 
 ## Technical decisions
 
-**Separate backend/frontend architecture (instead of Streamlit)**
-Streamlit is great for a single-file prototype, but a REST backend + SPA
-splits responsibilities in a more industry-standard way: the backend is
-reusable by any client (web, mobile, CLI), and the frontend can evolve
-independently. It's kept as a monorepo (`backend/` + `frontend/`) for
-simplicity, since it's a single developer shipping both pieces as one unit.
+**Separate backend/frontend architecture**
+A REST backend + SPA splits responsibilities in an industry-standard way:
+the backend is reusable by any client (web, mobile, CLI), and the frontend
+can evolve independently. It's kept as a monorepo (`backend/` + `frontend/`)
+for simplicity, since it's a single developer shipping both pieces as one unit.
 
 **PostgreSQL + SQLAlchemy 2.0 async + Alembic**
-Replaces the SQLite + raw `sqlite3` access from the Streamlit version.
 `asyncpg` + SQLAlchemy async avoids blocking FastAPI's event loop on every
 query; Alembic versions the database schema instead of relying on
 `CREATE TABLE IF NOT EXISTS`, which is the standard practice for evolving a
